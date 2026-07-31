@@ -71,7 +71,18 @@ const baseOrchard = {
   pricingRules: z.array(pricingRuleSchema).optional().default([]),
   seasonalPricing: z.array(seasonalPricingSchema).optional().default([]),
   images: z.array(imageSchema).optional().default([]),
-  thumbnail: z.string().optional().or(z.literal('')),
+  images: z.array(imageSchema).optional().default([]),
+      documents: z
+        .array(
+          z.object({
+            name: z.string().min(1),
+            url: z.string().url(),
+            type: z.enum(['Ownership Proof', 'Land Record', 'Soil Report', 'Certification', 'Other']).optional().default('Other'),
+          })
+        )
+        .optional()
+        .default([]),
+  thumbnail: z.string().url().optional().or(z.literal('')),
   amenities: z.array(z.string()).optional().default([]),
   pestIncidents: z.array(historyEntrySchema).optional().default([]),
   diseaseIncidents: z.array(historyEntrySchema).optional().default([]),

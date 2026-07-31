@@ -63,6 +63,7 @@ const empty = {
 
   images: [] as LocalOrchardImage[],
   videoTourUrl: '',
+  documents: [] as { name: string; url: string; type: string }[],
   pestHistoryRecords: [],
   diseaseHistoryRecords: [],
 };
@@ -188,6 +189,7 @@ export default function OrchardForm() {
 
       images: (o.images as unknown as LocalOrchardImage[]) || [],
       videoTourUrl: (o as any).videoTourUrl || '',
+      documents: (o as any).documents || [],
       pestHistoryRecords: (o as any).pestHistoryRecords || (o as any).pestHistory || [],
       diseaseHistoryRecords: (o as any).diseaseHistoryRecords || (o as any).diseaseHistory || [],
     });
@@ -218,6 +220,7 @@ export default function OrchardForm() {
       longitude: Number(form.longitude),
 
       videoTourUrl: form.videoTourUrl,
+      documents: form.documents,
       soilFertility: form.soilFertility,
       productionEstimate: form.productionEstimate,
       waterSourceQuality: form.waterSourceQuality,
@@ -275,104 +278,16 @@ export default function OrchardForm() {
         <Card className="space-y-4 p-6">
           <Input label="Garden name" value={form.gardenName} onChange={(e) => set('gardenName', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} />
-          
-          <div className="space-y-4 pt-2 border-t border-sand/30">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-sub">Orchard Gallery</label>
-              <p className="text-xs text-faint mb-4">Add high-quality photos of your garden, trees, and fruits. PNG, JPG, JPEG formats are supported.</p>
-            </div>
 
-            {/* Upload and Paste URLs Layout */}
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* File Upload zone */}
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-sand hover:border-forest rounded-2xl p-6 bg-cream/40 transition-colors cursor-pointer relative min-h-[140px]">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/png, image/jpeg, image/jpg"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                  id="orchard-image-file-upload"
-                />
-                {uploading ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 text-forest animate-spin" />
-                    <span className="text-xs font-semibold text-forest">Uploading images...</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <Upload className="h-8 w-8 text-sub" />
-                    <span className="text-sm font-semibold text-ink">Upload Image Files</span>
-                    <span className="text-xs text-faint">Drag & drop or click to select files</span>
-                  </div>
-                )}
-              </div>
-
-              {/* URL Paste */}
-              <div className="flex flex-col justify-between border border-sand rounded-2xl p-5 bg-cream/20">
-                <div className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-wide text-sub flex items-center gap-1.5">
-                    <Image className="h-3.5 w-3.5" /> Or add via Image URL
-                  </span>
-                  <Input
-                    placeholder="https://example.com/photo.jpg"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="bg-cream/40 border-sand focus:border-forest"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddImageUrl}
-                  className="mt-3 w-full border-forest/30 text-forest hover:bg-forest/5 flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="h-4 w-4" /> Add Image URL
-                </Button>
-              </div>
-            </div>
-
-            {/* Previews Grid */}
-            {form.images.length > 0 ? (
-              <div className="pt-2">
-                <span className="text-xs font-bold uppercase tracking-wide text-sub mb-3 block">Uploaded Images ({form.images.length})</span>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {form.images.map((img, index) => (
-                    <div key={index} className="relative aspect-video rounded-xl overflow-hidden border border-sand group shadow-sm bg-sand/10">
-                      <img
-                        src={img.url}
-                        alt={`Orchard photo ${index + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=Invalid+Image';
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="p-1.5 bg-terra/90 hover:bg-terra text-white rounded-lg transition-colors shadow-sm"
-                          title="Delete image"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                      {index === 0 && (
-                        <span className="absolute bottom-1.5 left-1.5 bg-forest text-cream text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                          Listing Thumbnail
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6 border border-sand/50 rounded-2xl bg-cream/10">
-                <p className="text-sm text-faint">No images added yet. Upload files or paste URLs above.</p>
-              </div>
-            )}
-          </div>
+          <Input
+            label="Orchard Image URL"
+            placeholder="https://example.com/orchard-photo.jpg"
+            value={form.images[0]?.url || ''}
+            onChange={(e) => set('images', e.target.value ? [{ url: e.target.value }] : [])}
+          />
+          {form.videoTourUrl && (
+            <video src={form.videoTourUrl} controls className="w-full rounded-xl mt-2 max-h-64" />
+          )}
 
           <Input
             label="Video Tour URL"
@@ -383,6 +298,65 @@ export default function OrchardForm() {
           {form.videoTourUrl && (
             <video src={form.videoTourUrl} controls className="w-full rounded-xl mt-2 max-h-64" />
           )}
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold">Orchard Documents</p>
+              <button
+                type="button"
+                onClick={() => set('documents', [...form.documents, { name: '', url: '', type: 'Other' }])}
+                className="text-xs font-semibold text-forest hover:underline"
+              >
+                + Add document
+              </button>
+            </div>
+            {form.documents.map((d, i) => (
+              <div key={i} className="mb-2 grid grid-cols-[1fr_1fr_auto_auto] items-center gap-2">
+                <input
+                  placeholder="Document name (e.g. Land Record 2023)"
+                  value={d.name}
+                  onChange={(e) => {
+                    const next = [...form.documents];
+                    next[i] = { ...next[i], name: e.target.value };
+                    set('documents', next);
+                  }}
+                  className="rounded-lg border border-sand bg-cream px-2.5 py-2 text-sm outline-none focus:border-forest"
+                />
+                <input
+                  placeholder="Document URL (PDF or image)"
+                  value={d.url}
+                  onChange={(e) => {
+                    const next = [...form.documents];
+                    next[i] = { ...next[i], url: e.target.value };
+                    set('documents', next);
+                  }}
+                  className="rounded-lg border border-sand bg-cream px-2.5 py-2 text-sm outline-none focus:border-forest"
+                />
+                <select
+                  value={d.type}
+                  onChange={(e) => {
+                    const next = [...form.documents];
+                    next[i] = { ...next[i], type: e.target.value };
+                    set('documents', next);
+                  }}
+                  className="rounded-lg border border-sand bg-cream px-2 py-2 text-sm outline-none focus:border-forest"
+                >
+                  <option value="Ownership Proof">Ownership Proof</option>
+                  <option value="Land Record">Land Record</option>
+                  <option value="Soil Report">Soil Report</option>
+                  <option value="Certification">Certification</option>
+                  <option value="Other">Other</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => set('documents', form.documents.filter((_, idx) => idx !== i))}
+                  className="text-xs font-semibold text-terra hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="District" value={form.district} onChange={(e) => set('district', e.target.value)} />

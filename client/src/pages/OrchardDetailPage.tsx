@@ -338,8 +338,29 @@ export default function OrchardDetailPage() {
         </div>
       )}
 
-      
-       
+      {(orchard as any).documents?.length > 0 && (
+        <div className="mb-7">
+          <p className="mb-2 text-sm font-semibold">Orchard Documents</p>
+          <div className="space-y-2">
+            {(orchard as any).documents.map((doc: any, i: number) => (
+              <a
+                key={i}
+                href={doc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-xl border border-sand bg-cream/60 px-4 py-3 hover:bg-cream transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-ink">{doc.name}</p>
+                  <p className="text-xs text-faint">{doc.type}</p>
+                </div>
+                <span className="text-xs font-semibold text-forest">View / Download</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-start gap-[30px]">
         {/* Left */}
         <div className="min-w-[300px] flex-[2_1_480px]">

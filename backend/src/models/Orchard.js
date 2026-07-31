@@ -157,6 +157,17 @@ const orchardSchema = new mongoose.Schema(
       documentUrl: { type: String, default: '' },
       certificateNumber: { type: String, default: '', trim: true },
     },
+    documents: {
+  type: [
+    {
+      name: { type: String, required: true },
+      url: { type: String, required: true },
+      type: { type: String, enum: ['Ownership Proof', 'Land Record', 'Soil Report', 'Certification', 'Other'], default: 'Other' },
+      uploadedAt: { type: Date, default: Date.now },
+    },
+  ],
+  default: [],
+},
 
     // pricing
     rentType: { type: String, enum: Object.values(RENT_TYPE), default: RENT_TYPE.SEASON },
