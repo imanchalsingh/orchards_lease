@@ -8,6 +8,5 @@ router.use(requireAuth);
 router.post('/initialize', payment.initializePayment);
 router.post('/verify', payment.verifyAndCompletePayment);
 router.get('/:id/receipt', payment.getPaymentReceipt);
-router.get('/history', payment.getUserPaymentHistory);
 
 export default router;
