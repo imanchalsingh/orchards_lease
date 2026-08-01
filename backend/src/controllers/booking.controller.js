@@ -36,7 +36,7 @@ const computeTotal = (orchard, startDate, endDate) => {
 
 /* --------------------------- Create -------------------------------- */
 export const createBooking = asyncHandler(async (req, res) => {
-  const { orchardId, startDate, endDate, message } = req.body;
+  const { orchardId, startDate, endDate, message, proposedPrice } = req.body;
 
   const orchard = await Orchard.findOne({ _id: orchardId, deletedAt: null });
   if (!orchard) throw ApiError.notFound('Orchard not found');
@@ -70,7 +70,15 @@ export const createBooking = asyncHandler(async (req, res) => {
   });
   if (overlap) throw ApiError.conflict('Selected dates overlap an existing booking');
 
-  const totalAmount = computeTotal(orchard, startDate, endDate);
+  const calculatedTotal = computeTotal(orchard, startDate, endDate);
+  const initialAmount = proposedPrice && proposedPrice > 0 ? proposedPrice : calculatedTotal;
+
+  const initialNegotiations = proposedPrice && proposedPrice !== calculatedTotal ? [{
+    offeredBy: req.user._id,
+    amount: proposedPrice,
+    note: message || 'Initial price proposal',
+    status: 'PENDING',
+  }] : [];
 
   const booking = await Booking.create({
     orchardId,
@@ -78,8 +86,10 @@ export const createBooking = asyncHandler(async (req, res) => {
     sellerId: orchard.sellerId,
     startDate,
     endDate,
-    totalAmount,
+    totalAmount: initialAmount,
+    originalAmount: calculatedTotal,
     message,
+    negotiations: initialNegotiations,
     timeline: [{ status: BOOKING_STATUS.REQUESTED, note: 'Booking requested', by: req.user._id }],
   });
 
@@ -128,8 +138,6 @@ export const listBookings = asyncHandler(async (req, res) => {
     Booking.countDocuments(filter),
   ]);
 
-  // Optional client-hint search: filter by orchard gardenName / location
-  // (client-side post-filter; move to $lookup pipeline for large datasets)
   let results = items;
   if (q.search) {
     const re = new RegExp(q.search.trim(), 'i');
@@ -146,13 +154,14 @@ export const listBookings = asyncHandler(async (req, res) => {
   return ok(res, results, 'Bookings', buildPageMeta({ page, limit, total }));
 });
 
-
 /* --------------------------- Get one ------------------------------- */
 export const getBooking = asyncHandler(async (req, res) => {
   const booking = await Booking.findById(req.params.id)
     .populate('orchardId', 'gardenName slug thumbnail state district price')
     .populate('renterId', 'name avatar email phone')
-    .populate('sellerId', 'name avatar email phone');
+    .populate('sellerId', 'name avatar email phone')
+    .populate('negotiations.offeredBy', 'name avatar role');
+
   if (!booking) throw ApiError.notFound('Booking not found');
 
   const uid = String(req.user._id);
@@ -233,6 +242,125 @@ export const rejectBooking = asyncHandler(async (req, res) => {
   });
 
   return ok(res, booking, 'Booking rejected');
+});
+
+/* ------------------------ Price Negotiation ------------------------ */
+export const submitCounterOffer = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) throw ApiError.notFound('Booking not found');
+
+  const uid = String(req.user._id);
+  const isRenter = uid === String(booking.renterId);
+  const isSeller = uid === String(booking.sellerId);
+
+  if (!isRenter && !isSeller) {
+    throw ApiError.forbidden('You are not authorized to negotiate this booking');
+  }
+
+  if (booking.bookingStatus !== BOOKING_STATUS.REQUESTED) {
+    throw ApiError.badRequest('Negotiations are only allowed on pending requests');
+  }
+
+  const { amount, note } = req.body;
+
+  // Mark previous pending negotiations as REJECTED
+  (booking.negotiations || []).forEach((neg) => {
+    if (neg.status === 'PENDING') neg.status = 'REJECTED';
+  });
+
+  booking.negotiations.push({
+    offeredBy: req.user._id,
+    amount,
+    note: note || '',
+    status: 'PENDING',
+  });
+
+  booking.addTimeline('COUNTER_OFFER', `New counter offer: ${amount}`, req.user._id);
+  await booking.save();
+
+  const recipientId = isRenter ? booking.sellerId : booking.renterId;
+  await notify({
+    user: recipientId,
+    type: NOTIFICATION_TYPE.BOOKING,
+    title: 'New price offer',
+    message: `${req.user.name} submitted a new offer of ${amount}`,
+    link: isRenter ? `/seller/bookings/${booking._id}` : `/bookings/${booking._id}`,
+  });
+
+  return ok(res, booking, 'Counter offer submitted successfully');
+});
+
+export const acceptCounterOffer = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) throw ApiError.notFound('Booking not found');
+
+  const uid = String(req.user._id);
+  const isRenter = uid === String(booking.renterId);
+  const isSeller = uid === String(booking.sellerId);
+
+  if (!isRenter && !isSeller) {
+    throw ApiError.forbidden('Not authorized');
+  }
+
+  const latestNegotiation = booking.negotiations[booking.negotiations.length - 1];
+  if (!latestNegotiation || latestNegotiation.status !== 'PENDING') {
+    throw ApiError.badRequest('No pending offer to accept');
+  }
+
+  if (String(latestNegotiation.offeredBy) === uid) {
+    throw ApiError.badRequest('You cannot accept your own offer');
+  }
+
+  latestNegotiation.status = 'ACCEPTED';
+  booking.totalAmount = latestNegotiation.amount;
+  booking.addTimeline('OFFER_ACCEPTED', `Accepted price: ${latestNegotiation.amount}`, req.user._id);
+  await booking.save();
+
+  await notify({
+    user: latestNegotiation.offeredBy,
+    type: NOTIFICATION_TYPE.BOOKING,
+    title: 'Price offer accepted',
+    message: `${req.user.name} accepted your offer of ${latestNegotiation.amount}`,
+    link: isRenter ? `/seller/bookings/${booking._id}` : `/bookings/${booking._id}`,
+  });
+
+  return ok(res, booking, 'Counter offer accepted');
+});
+
+export const rejectCounterOffer = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) throw ApiError.notFound('Booking not found');
+
+  const uid = String(req.user._id);
+  const isRenter = uid === String(booking.renterId);
+  const isSeller = uid === String(booking.sellerId);
+
+  if (!isRenter && !isSeller) {
+    throw ApiError.forbidden('Not authorized');
+  }
+
+  const latestNegotiation = booking.negotiations[booking.negotiations.length - 1];
+  if (!latestNegotiation || latestNegotiation.status !== 'PENDING') {
+    throw ApiError.badRequest('No pending offer to reject');
+  }
+
+  if (String(latestNegotiation.offeredBy) === uid) {
+    throw ApiError.badRequest('You cannot reject your own offer');
+  }
+
+  latestNegotiation.status = 'REJECTED';
+  booking.addTimeline('OFFER_REJECTED', `Rejected offer: ${latestNegotiation.amount}`, req.user._id);
+  await booking.save();
+
+  await notify({
+    user: latestNegotiation.offeredBy,
+    type: NOTIFICATION_TYPE.BOOKING,
+    title: 'Price offer declined',
+    message: `${req.user.name} declined your offer of ${latestNegotiation.amount}`,
+    link: isRenter ? `/seller/bookings/${booking._id}` : `/bookings/${booking._id}`,
+  });
+
+  return ok(res, booking, 'Counter offer rejected');
 });
 
 /* ------------------------ Renter: cancel --------------------------- */

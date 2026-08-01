@@ -9,6 +9,7 @@ import {
   rejectBookingSchema,
   cancelBookingSchema,
   bookingQuerySchema,
+  offerSchema,
 } from '../validators/booking.validator.js';
 import { idParam } from '../validators/common.validator.js';
 
@@ -26,5 +27,10 @@ router.post('/:id/complete', restrictTo(ROLES.SELLER, ROLES.ADMIN), validate({ p
 
 // renter action
 router.post('/:id/cancel', restrictTo(ROLES.RENTER), validate({ params: idParam, ...cancelBookingSchema }), booking.cancelBooking);
+
+// price negotiation routes (Issue #104)
+router.post('/:id/negotiate', validate({ params: idParam, ...offerSchema }), booking.submitCounterOffer);
+router.post('/:id/negotiate/accept', validate({ params: idParam }), booking.acceptCounterOffer);
+router.post('/:id/negotiate/reject', validate({ params: idParam }), booking.rejectCounterOffer);
 
 export default router;

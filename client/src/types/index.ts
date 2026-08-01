@@ -164,7 +164,9 @@ export interface BookedDate {
   endDate: string;
   status: string;
 }
+
 export type OccupancyStatus = 'available' | 'reserved' | 'leased' | 'maintenance';
+
 export interface OrchardAvailabilityResponse {
   orchardId: string;
   gardenName: string;
@@ -194,6 +196,15 @@ export interface RenewalEntry {
   additionalAmount: number;
 }
 
+export interface Negotiation {
+  _id?: string;
+  offeredBy: User | string;
+  amount: number;
+  note?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt?: string;
+}
+
 export interface Booking {
   _id: string;
   orchardId: Orchard | string;
@@ -204,9 +215,13 @@ export interface Booking {
   bookingStatus: BookingStatus;
   paymentStatus: string;
   totalAmount: number;
+  originalAmount?: number;
   message?: string;
   rejectionReason?: string;
   cancellationReason?: string;
+
+  // Price Negotiation (Issue #104)
+  negotiations?: Negotiation[];
 
   // Lease Renewal Properties (Issue #27)
   isRenewal?: boolean;
@@ -324,7 +339,7 @@ export interface FilterOptions {
   availableRentTypes: string[];
   availableAmenities: string[];
   priceRange: { min: number; max: number };
-  treeRange:  { min: number; max: number };
+  treeRange: { min: number; max: number };
 }
 
 export interface WeatherCurrent {
@@ -423,18 +438,4 @@ export interface RecommendationItem {
 
 export interface RecommendationResponse {
   recommendations: RecommendationItem[];
-}export interface Treatment {
-  date: string;
-  method: string;
-  chemicals?: string[];
-  notes?: string;
-}
-
-export interface HistoryEntry {
-  incidentDate: string;
-  season?: string;
-  items?: string[];
-  severity?: string;
-  description?: string;
-  treatments?: Treatment[];
 }
