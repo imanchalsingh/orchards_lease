@@ -34,8 +34,24 @@ export const bookingService = {
     generateLeaseAgreementPDF(booking);
   },
 
-  create: async (data: { orchardId: string; startDate: string; endDate: string; message?: string }) => {
+  create: async (data: { orchardId: string; startDate: string; endDate: string; message?: string; proposedPrice?: number }) => {
     const res = await apiClient.post<ApiResponse<Booking>>('/bookings', data);
+    return res.data.data;
+  },
+
+  // Price Negotiation Methods (Issue #104)
+  negotiate: async (bookingId: string, data: { amount: number; note?: string }) => {
+    const res = await apiClient.post<ApiResponse<Booking>>(`/bookings/${bookingId}/negotiate`, data);
+    return res.data.data;
+  },
+
+  acceptOffer: async (bookingId: string) => {
+    const res = await apiClient.post<ApiResponse<Booking>>(`/bookings/${bookingId}/negotiate/accept`);
+    return res.data.data;
+  },
+
+  rejectOffer: async (bookingId: string) => {
+    const res = await apiClient.post<ApiResponse<Booking>>(`/bookings/${bookingId}/negotiate/reject`);
     return res.data.data;
   },
 

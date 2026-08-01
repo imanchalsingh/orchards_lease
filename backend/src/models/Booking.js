@@ -11,6 +11,21 @@ const timelineSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const negotiationSchema = new mongoose.Schema(
+  {
+    offeredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    amount: { type: Number, required: true, min: 0 },
+    note: { type: String, default: '', maxlength: 500 },
+    status: {
+      type: String,
+      enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+      default: 'PENDING',
+    },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
 const bookingSchema = new mongoose.Schema(
   {
     orchardId: {
@@ -47,9 +62,13 @@ const bookingSchema = new mongoose.Schema(
     },
 
     totalAmount: { type: Number, required: true, min: 0 },
+    originalAmount: { type: Number, min: 0 },
     message: { type: String, default: '', maxlength: 1000 },
     rejectionReason: { type: String, default: '' },
     cancellationReason: { type: String, default: '' },
+
+    // Price Negotiation (Issue #104)
+    negotiations: { type: [negotiationSchema], default: [] },
 
     // Lease Renewal Management (Issue #27)
     isRenewal: { type: Boolean, default: false },
